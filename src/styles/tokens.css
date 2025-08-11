@@ -1,0 +1,12 @@
+:root {
+  /* 导航统一变量（你只要改这里，全站会同步变化） */
+  --nav-height: 80px;
+  --nav-font-size: 1.1rem; /* clamp 版本见下面“可选：响应式” */
+  --nav-horizontal-padding: 56px; /* 左右内边距 */
+  --nav-gap: 1.25rem; /* 链接之间的间距 */
+
+  --nav-bg: #fff;
+  --nav-text: #333;
+  --nav-text-active: #000;
+  --nav-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}

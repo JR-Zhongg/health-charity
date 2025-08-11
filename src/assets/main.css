@@ -1,0 +1,34 @@
+@import './base.css';
+
+/* 覆盖 Vite 模板的默认 #app 样式 */
+html, body, #app {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#app {
+  max-width: none;
+  text-align: initial;
+  display: block;
+}
+a,
+.green {
+  text-decoration: none;
+  color: hsla(160, 100%, 37%, 1);
+  transition: 0.4s;
+  padding: 3px;
+}
+
+@media (min-width: 1024px) {
+  body {
+    display: block;
+    place-items: initial;
+  }
+  #app {
+    display: block;
+    grid-template-columns: none;
+    padding: 0;
+  }
+}
