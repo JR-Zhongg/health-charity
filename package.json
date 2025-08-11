@@ -16,7 +16,14 @@
   },
   "dependencies": {
     "bootstrap": "^5.3.7",
+    "cors": "^2.8.5",
+    "emailjs-com": "^3.2.0",
+    "express": "^5.1.0",
+    "firebase": "^12.1.0",
+    "firebase-admin": "^13.4.0",
     "pinia": "^3.0.3",
+    "primeicons": "^7.0.0",
+    "primevue": "^3.53.1",
     "vue": "^3.5.17",
     "vue-router": "^4.5.1"
   },
@@ -43,5 +50,10 @@
     "vite-plugin-vue-devtools": "^7.7.7",
     "vitest": "^3.2.4",
     "vue-tsc": "^2.2.10"
-  }
+  },
+  "description": "This template should help get you started developing with Vue 3 in Vite.",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }
