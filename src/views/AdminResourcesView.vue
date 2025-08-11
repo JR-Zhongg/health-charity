@@ -130,7 +130,8 @@ import { useResources, type Resource } from '../composables/useResources'
 import { sanitizeObject, escapeHtml } from '@/utils/security' // 没有别名请改成 ../utils/security
 
 const router = useRouter()
-const { currentUser, isAuthenticated } = useAuth()
+// ✅ Correctly import 'role' and 'isAuthenticated' from useAuth
+const { isAuthenticated, role } = useAuth()
 const {
   resources,
   createResource,
@@ -139,8 +140,8 @@ const {
   resetResources
 } = useResources()
 
-// 二次防守（路由守卫已经做了）
-const isAdmin = computed(() => currentUser.value?.role === 'admin')
+// ✅ Use the imported 'role' computed property for the check
+const isAdmin = computed(() => role.value === 'admin')
 if (!isAuthenticated.value || !isAdmin.value) {
   router.replace('/')
 }

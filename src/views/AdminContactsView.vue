@@ -58,12 +58,14 @@ import { useAuth } from '../composables/useAuth'
 import { useContacts, markRead, deleteMessage, resetMessages } from '../composables/useContacts'
 
 const router = useRouter()
-const { currentUser, isAuthenticated } = useAuth()
+// ✅ Correctly import 'role' directly from the useAuth composable
+const { isAuthenticated, role } = useAuth()
 const { messages } = useContacts()
 
-const isAdmin = computed(() => currentUser.value?.role === 'admin')
+// ✅ Use the imported 'role' computed property for the check
+const isAdmin = computed(() => role.value === 'admin')
 
-// 防御性判断（路由守卫已经拦了，这里再兜底）
+// Defensive check (the route guard already handles this, this is a fallback)
 if (!isAuthenticated.value || !isAdmin.value) {
   router.replace('/')
 }

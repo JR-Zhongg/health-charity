@@ -140,7 +140,7 @@ type Resource = {
   summary: string
   tags: string[]
   ratings: number[]
-  ratedBy: number[]   // 新增：记录哪些用户评价过
+  ratedBy: string[]   // Changed to string[] to store UIDs
   createdAt: string
   url?: string
 }
@@ -192,9 +192,11 @@ const sortBy = ref<'newest' | 'rating' | 'title'>('newest')
 const userRatings = ref<Record<number, number>>({})
 const errors = ref<Record<number, string>>({})
 
-const { currentUser, isAuthenticated } = useAuth()
+// ✅ Correctly import 'role', 'currentUser', and 'isAuthenticated'
+const { currentUser, isAuthenticated, role } = useAuth()
 const isLoggedIn = computed(() => isAuthenticated.value)
-const isAdmin = computed(() => currentUser.value?.role === 'admin')
+// ✅ Use the imported 'role' property for the check
+const isAdmin = computed(() => role.value === 'admin')
 
 onMounted(() => {
   const saved = localStorage.getItem(STORAGE_KEY)
@@ -225,13 +227,15 @@ function avg(res: Resource) {
 }
 
 function hasRated(res: Resource) {
-  const uid = currentUser.value?.id
+  // ✅ Use 'uid' instead of 'id'
+  const uid = currentUser.value?.uid
   if (!uid) return false
   return res.ratedBy?.includes(uid)
 }
 
 function submitRating(res: Resource) {
-  const uid = currentUser.value?.id
+  // ✅ Use 'uid' instead of 'id'
+  const uid = currentUser.value?.uid
   if (!uid) {
     errors.value[res.id] = 'Please login to rate.'
     return
@@ -250,6 +254,7 @@ function submitRating(res: Resource) {
   }
 
   res.ratings.push(val)
+  // ✅ Push the correct 'uid' (string) into the ratedBy array
   res.ratedBy.push(uid)
 
   save()
