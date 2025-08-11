@@ -2,7 +2,7 @@
   <div class="auth container-wide">
     <h1>Register</h1>
 
-    <!-- 全局错误汇总（可选） -->
+    <!-- 全局错误汇总 -->
     <ul v-if="summaryErrors.length" class="error-summary" aria-live="polite">
       <li v-for="(e, i) in summaryErrors" :key="i">{{ e }}</li>
     </ul>
@@ -31,6 +31,7 @@
           id="email"
           v-model.trim="form.email"
           type="email"
+          autocomplete="email"
           :aria-invalid="!!fieldErrors.email"
           :aria-describedby="fieldErrors.email ? 'email-error' : undefined"
           required
@@ -75,15 +76,6 @@
         <p v-if="fieldErrors.confirm" id="confirm-error" class="error">{{ fieldErrors.confirm }}</p>
       </div>
 
-      <!-- Role（演示需要可保留；真实项目通常只由后台分配 admin） -->
-      <div class="form-control">
-        <label for="role">Role</label>
-        <select id="role" v-model="form.role">
-          <option value="user">User</option>
-          <option value="admin">Admin (demo)</option>
-        </select>
-      </div>
-
       <button type="submit" class="btn-primary" :disabled="isSubmitting || hasAnyError">
         {{ isSubmitting ? 'Submitting...' : 'Create Account' }}
       </button>
@@ -99,41 +91,37 @@
 <script setup lang="ts">
 import { reactive, computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuth, type Role } from '../composables/useAuth'
+import { useAuth } from '@/composables/useAuth'
+
+const { register } = useAuth()
+const router = useRouter()
 
 // 常量
 const NAME_MAX = 50
-
-// 逻辑
-const router = useRouter()
-const { register, login, users } = useAuth()
+const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 type Form = {
   name: string
   email: string
   password: string
   confirm: string
-  role: Role
 }
+
 const form = reactive<Form>({
   name: '',
   email: '',
   password: '',
-  confirm: '',
-  role: 'user'
+  confirm: ''
 })
 
 const fieldErrors = reactive<Record<keyof Form, string | null>>({
   name: null,
   email: null,
   password: null,
-  confirm: null,
-  role: null
+  confirm: null
 })
 const summaryErrors = ref<string[]>([])
 const isSubmitting = ref(false)
-
-const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 // 密码强度（简单示例）
 const pwdStrength = computed(() => {
@@ -149,11 +137,9 @@ const pwdStrength = computed(() => {
 })
 
 // 有任何错误就禁用提交
-const hasAnyError = computed(() =>
-  Object.values(fieldErrors).some((e) => !!e)
-)
+const hasAnyError = computed(() => Object.values(fieldErrors).some((e) => !!e))
 
-/** 前端本地验证（更友好提示），再交给 useAuth.register 二次校验 */
+/** 前端本地验证（更友好提示） */
 function validateLocal(): string[] {
   const errors: string[] = []
 
@@ -171,8 +157,6 @@ function validateLocal(): string[] {
     fieldErrors.email = 'Email is required.'
   } else if (!emailRe.test(form.email)) {
     fieldErrors.email = 'Invalid email format.'
-  } else if (users.value.some(u => u.email === form.email.trim().toLowerCase())) {
-    fieldErrors.email = 'This email is already registered.'
   } else {
     fieldErrors.email = null
   }
@@ -206,6 +190,18 @@ function validateLocal(): string[] {
   return errors
 }
 
+function mapFirebaseError(err: unknown): string {
+  const msg = typeof err === 'object' && err !== null && 'message' in err
+    ? String((err as { message: string }).message)
+    : ''
+
+  if (msg.includes('auth/email-already-in-use')) return 'This email is already registered.'
+  if (msg.includes('auth/invalid-email')) return 'Invalid email format.'
+  if (msg.includes('auth/weak-password')) return 'Password is too weak.'
+  if (msg.includes('auth/network-request-failed')) return 'Network error. Please try again.'
+  return 'Register failed. Please try again.'
+}
+
 async function onSubmit() {
   summaryErrors.value = []
   const local = validateLocal()
@@ -215,25 +211,14 @@ async function onSubmit() {
   }
 
   isSubmitting.value = true
-  const res = register({
-    name: form.name,
-    email: form.email,
-    password: form.password,
-    role: form.role
-  })
-
-  if (!res.success) {
-    // useAuth.register 的二次校验（防止绕过）
-    summaryErrors.value = res.errors ?? ['Register failed']
-    isSubmitting.value = false
-    return
-  }
-
-  // 自动登录
-  const loginRes = login({ email: form.email, password: form.password })
-  isSubmitting.value = false
-  if (loginRes.success) {
+  try {
+    // Firebase 会自动登录新注册用户
+    await register(form.email.trim(), form.password, form.name.trim())
     router.push('/')
+  } catch (e) {
+    summaryErrors.value = [mapFirebaseError(e)]
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>

@@ -13,6 +13,7 @@
           id="email"
           v-model.trim="email"
           type="email"
+          autocomplete="email"
           :aria-invalid="!!fieldErrors.email"
           :aria-describedby="fieldErrors.email ? 'email-error' : undefined"
           required
@@ -26,6 +27,7 @@
           id="password"
           v-model="password"
           type="password"
+          autocomplete="current-password"
           :aria-invalid="!!fieldErrors.password"
           :aria-describedby="fieldErrors.password ? 'password-error' : undefined"
           required
@@ -48,7 +50,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAuth } from '../composables/useAuth'
+import { useAuth } from '../composables/useAuth' // 若使用别名，请改成 '@/composables/useAuth'
 
 const { login } = useAuth()
 const router = useRouter()
@@ -93,6 +95,19 @@ function validateLocal(): string[] {
   return errors
 }
 
+function mapFirebaseError(err: unknown): string {
+  const msg = typeof err === 'object' && err !== null && 'message' in err
+    ? String((err as { message: string }).message)
+    : ''
+
+  if (msg.includes('auth/invalid-email')) return 'Invalid email format.'
+  if (msg.includes('auth/invalid-credential') || msg.includes('auth/wrong-password')) return 'Email or password is incorrect.'
+  if (msg.includes('auth/user-not-found')) return 'User not found.'
+  if (msg.includes('auth/too-many-requests')) return 'Too many attempts. Please try again later.'
+  return 'Login failed. Please try again.'
+}
+
+
 async function onSubmit() {
   summaryErrors.value = []
 
@@ -103,16 +118,16 @@ async function onSubmit() {
   }
 
   isSubmitting.value = true
-  const res = login({ email: email.value, password: password.value })
-  isSubmitting.value = false
-
-  if (!res.success) {
-    summaryErrors.value = res.errors ?? ['Login failed']
-    return
+  try {
+    await login(email.value.trim(), password.value)
+    // 登录成功后的跳转
+    const redirect = (route.query.redirect as string) || '/'
+    router.push(redirect)
+  } catch (e) {
+    summaryErrors.value = [mapFirebaseError(e)]
+  } finally {
+    isSubmitting.value = false
   }
-
-  const redirect = (route.query.redirect as string) || '/'
-  router.push(redirect)
 }
 </script>
 

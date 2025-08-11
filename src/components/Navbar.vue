@@ -1,6 +1,5 @@
 <template>
   <header class="navbar" role="navigation" aria-label="main navigation">
-    <!-- 仅保留汉堡按钮（小屏显示） -->
     <button
       class="hamburger"
       :class="{ active: isOpen }"
@@ -12,29 +11,34 @@
       <span></span><span></span><span></span>
     </button>
 
-    <!-- 菜单（大屏横向，小屏折叠纵向） -->
-    <nav
-      id="main-menu"
-      class="menu"
-      :class="{ open: isOpen }"
-    >
+    <nav id="main-menu" class="menu" :class="{ open: isOpen }">
       <div class="nav-left">
         <RouterLink to="/" class="nav-link" @click="closeIfMobile">Home</RouterLink>
         <RouterLink to="/resources" class="nav-link" @click="closeIfMobile">Health Resources</RouterLink>
+        <RouterLink to="/resources-table" class="nav-link" @click="closeIfMobile">Resources Table</RouterLink>
         <RouterLink to="/community" class="nav-link" @click="closeIfMobile">Community Forum</RouterLink>
         <RouterLink to="/contact" class="nav-link" @click="closeIfMobile">Contact & Support</RouterLink>
         <RouterLink to="/about" class="nav-link" @click="closeIfMobile">About Us</RouterLink>
         <RouterLink to="/carer-support" class="nav-link" @click="closeIfMobile">Carer Support</RouterLink>
+        <RouterLink to="/admin/contact-form" class="nav-link" @click="closeIfMobile">Send Email</RouterLink>
       </div>
 
       <div class="nav-right">
         <template v-if="isAuthenticated">
-          <span class="welcome">Hi, {{ currentUser?.name }}</span>
+          <span class="welcome">Hi, {{ displayName }}</span>
 
           <template v-if="isAdmin">
-            <RouterLink to="/admin" class="nav-link" @click="closeIfMobile">Admin</RouterLink>
-            <RouterLink to="/admin/resources" class="nav-link" @click="closeIfMobile">Manage Resources</RouterLink>
-            <RouterLink to="/admin/contacts" class="nav-link" @click="closeIfMobile">Messages</RouterLink>
+            <!-- Admin Dropdown -->
+            <details class="dropdown" @toggle="closeIfMobile">
+              <summary class="nav-link">Admin Panel ▾</summary>
+              <div class="dropdown-menu">
+                <RouterLink to="/admin" class="dropdown-item" @click="closeIfMobile">Dashboard</RouterLink>
+                <RouterLink to="/admin/resources" class="dropdown-item" @click="closeIfMobile">Manage Resources</RouterLink>
+                <RouterLink to="/admin/contacts" class="dropdown-item" @click="closeIfMobile">Messages</RouterLink>
+                <RouterLink to="/admin/contact-form" class="dropdown-item" @click="closeIfMobile">Send Email</RouterLink>
+                <RouterLink to="/admin/simple-table" class="dropdown-item" @click="closeIfMobile">Simple Table</RouterLink>
+              </div>
+            </details>
           </template>
 
           <button class="logout" @click="onLogout">Logout</button>
@@ -55,9 +59,9 @@ import { useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 
 const router = useRouter()
-const { currentUser, isAuthenticated, logout } = useAuth()
+const { isAuthenticated, displayName, role, logout } = useAuth()
 
-const isAdmin = computed(() => currentUser.value?.role === 'admin')
+const isAdmin = computed(() => role.value === 'admin')
 const isOpen = ref(false)
 
 function toggle() {
@@ -93,11 +97,9 @@ function onLogout() {
   position: sticky;
   top: 0;
   z-index: 1000;
-
   width: 100%;
   background: var(--nav-bg);
   box-shadow: var(--nav-shadow);
-
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -106,7 +108,6 @@ function onLogout() {
   box-sizing: border-box;
 }
 
-/* 汉堡按钮：大屏隐藏，小屏显示 */
 .hamburger {
   display: none;
   width: 28px;
@@ -140,7 +141,6 @@ function onLogout() {
   transform: rotate(-45deg);
 }
 
-/* 菜单（大屏横向，小屏纵向折叠） */
 .menu {
   display: flex;
   align-items: center;
@@ -162,6 +162,7 @@ function onLogout() {
   font-weight: 700;
   font-size: var(--nav-font-size);
   white-space: nowrap;
+  cursor: pointer;
 }
 .nav-link.router-link-active {
   color: var(--nav-text-active);
@@ -179,7 +180,41 @@ function onLogout() {
   cursor: pointer;
 }
 
-/* ====== 小屏样式 ====== */
+/* dropdown */
+.dropdown {
+  position: relative;
+}
+.dropdown summary {
+  list-style: none;
+  cursor: pointer;
+}
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 0;
+  z-index: 999;
+  min-width: 200px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.dropdown[open] .dropdown-menu {
+  display: block;
+}
+.dropdown-item {
+  display: block;
+  padding: 8px 16px;
+  text-decoration: none;
+  color: var(--nav-text);
+}
+.dropdown-item:hover {
+  background: #f8f8f8;
+}
+
+/* 小屏适配 */
 @media (max-width: 768px) {
   :root {
     --nav-height: 60px;
@@ -199,7 +234,6 @@ function onLogout() {
     margin: 14px var(--nav-horizontal-padding) 0;
   }
 
-  /* menu 默认隐藏（高度为 auto 时撑开） */
   .menu {
     display: none;
     flex-direction: column;
@@ -217,14 +251,29 @@ function onLogout() {
     width: 100%;
     flex-direction: column;
     align-items: flex-start;
-    gap: .75rem;
-    margin-top: .5rem;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
   }
 
   .nav-link {
     display: block;
     width: 100%;
-    padding: .25rem 0;
+    padding: 0.25rem 0;
+  }
+
+  .dropdown {
+    width: 100%;
+  }
+
+  .dropdown-menu {
+    position: static;
+    box-shadow: none;
+    border: none;
+    padding: 0;
+  }
+
+  .dropdown-item {
+    padding: 0.5rem 0;
   }
 }
 </style>

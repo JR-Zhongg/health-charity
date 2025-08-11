@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
-// 视图
+// 视图页面
 import HomeView from '../views/HomeView.vue'
 import HealthResourcesView from '../views/HealthResourcesView.vue'
 import CommunityView from '../views/CommunityView.vue'
@@ -11,13 +11,16 @@ import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import AdminDashboardView from '../views/AdminDashboardView.vue'
 import AdminResourcesView from '../views/AdminResourcesView.vue'
-import AdminContactsView from '../views/AdminContactsView.vue' // 👈 新增
+import AdminContactsView from '../views/AdminContactsView.vue'
+import ContactForm from '../views/ContactForm.vue'
+import ResourcesTableView from '../views/ResourcesTableView.vue' // ✅ D.3 - 用户可访问表格
+import AdminSimpleTableView from '../views/AdminSimpleTableView.vue' // ✅ 替代 AdminUsersTableView
 
-// 类型
+// 类型支持
 import type { Role } from '../composables/useAuth'
 import { useAuth } from '../composables/useAuth'
 
-// 为 RouteMeta 增强类型
+// 为 RouteMeta 增强类型（添加类型支持）
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
@@ -34,6 +37,22 @@ const routes: RouteRecordRaw[] = [
   { path: '/contact', name: 'contact', component: ContactView },
   { path: '/about', name: 'about', component: AboutView },
   { path: '/carer-support', name: 'carer-support', component: CarerSupportView },
+
+  // ✅ D.3 用户可访问表格
+  {
+    path: '/resources-table',
+    name: 'resources-table',
+    component: ResourcesTableView,
+    meta: { requiresAuth: false }
+  },
+
+  // ✅ D.3 管理员表格（简化版本）
+  {
+    path: '/admin/simple-table',
+    name: 'admin-simple-table',
+    component: AdminSimpleTableView,
+    meta: { requiresAuth: true, roles: ['admin'] }
+  },
 
   // Auth
   { path: '/login', name: 'login', component: LoginView, meta: { guestOnly: true } },
@@ -58,8 +77,14 @@ const routes: RouteRecordRaw[] = [
     component: AdminContactsView,
     meta: { requiresAuth: true, roles: ['admin'] }
   },
+  {
+    path: '/admin/contact-form',
+    name: 'admin-contact-form',
+    component: ContactForm,
+    meta: { requiresAuth: true, roles: ['admin'] }
+  },
 
-  // 404 -> 重定向首页（可改成自定义 404 页）
+  // fallback
   { path: '/:pathMatch(.*)*', redirect: '/' }
 ]
 
@@ -68,24 +93,24 @@ const router = createRouter({
   routes
 })
 
-// 返回式守卫（无需 next，ESLint 更友好）
-router.beforeEach((to) => {
-  const { isAuthenticated, hasAnyRole } = useAuth()
+// 登录状态守卫
+router.beforeEach(async (to) => {
+  const { authReady, waitForAuthReady, isAuthenticated, hasAnyRole } = useAuth()
 
-  // 访客专用（login/register），已登录则回首页
+  if (!authReady.value) {
+    await waitForAuthReady()
+  }
+
   if (to.meta.guestOnly && isAuthenticated.value) {
     return { name: 'home' }
   }
 
-  // 需要登录
   if (to.meta.requiresAuth && !isAuthenticated.value) {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
 
-  // 需要特定角色
   if (to.meta.roles && to.meta.roles.length > 0) {
-    const roles = to.meta.roles as Role[]
-    if (!hasAnyRole(roles)) {
+    if (!hasAnyRole(to.meta.roles as Role[])) {
       return { name: 'home' }
     }
   }
