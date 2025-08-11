@@ -7,7 +7,7 @@
       <h2>Users</h2>
       <!-- 
         这里暂时显示一条提示信息。
-        获取所有用户列表需要后端功能（如 Firebase Cloud Functions）支持。
+        获取所有用户列表需要后端功能（如 Firebase Cloud Functions）支持。  
       -->
       <p>User list functionality requires a backend implementation.</p>
       <!-- 
