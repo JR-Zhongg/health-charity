@@ -15,8 +15,14 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.19",
+    "@fullcalendar/daygrid": "^6.1.19",
+    "@fullcalendar/interaction": "^6.1.19",
+    "@fullcalendar/timegrid": "^6.1.19",
+    "@fullcalendar/vue3": "^6.1.19",
     "@primevue/themes": "^4.3.7",
     "bootstrap": "^5.3.7",
+    "chart.js": "^4.5.0",
     "cors": "^2.8.5",
     "emailjs-com": "^3.2.0",
     "express": "^5.1.0",
@@ -26,6 +32,7 @@
     "primeicons": "^7.0.0",
     "primevue": "^4.3.0",
     "vue": "^3.5.17",
+    "vue-chartjs": "^5.3.2",
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
