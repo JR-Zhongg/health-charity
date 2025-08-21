@@ -1,5 +1,5 @@
 <template>
-  <div class="resources">
+  <main class="resources">
     <div class="container-wide">
       <h1 class="page-title">Health Resources</h1>
 
@@ -38,6 +38,7 @@
           class="reset"
           type="button"
           @click="resetData"
+          aria-label="Reset all resource data to default"
         >
           Reset Mock Data
         </button>
@@ -49,7 +50,7 @@
         class="grid"
         aria-label="resources list"
       >
-        <article class="card" v-for="res in filteredResources" :key="res.id">
+        <article class="card" v-for="res in filteredResources" :key="res.id" tabindex="0">
           <header class="card-header">
             <h2 class="title">{{ res.title }}</h2>
             <span class="badge">{{ res.category }}</span>
@@ -67,7 +68,7 @@
             class="rating-line"
             :aria-label="`Average rating ${avg(res).toFixed(1)} out of 5, from ${res.ratings.length} ratings`"
           >
-            <span class="stars">
+            <span class="stars" role="img" :aria-label="`${Math.round(avg(res))} out of 5 stars`">
               <span
                 v-for="i in 5"
                 :key="i"
@@ -87,7 +88,7 @@
             <select
               :id="`rate-${res.id}`"
               v-model.number="userRatings[res.id]"
-              aria-describedby="rateHelp"
+              :aria-describedby="`rateHelp-${res.id}`"
               :disabled="!isLoggedIn || hasRated(res)"
             >
               <option disabled value="0">Select…</option>
@@ -96,18 +97,19 @@
             <button
               type="submit"
               :disabled="!isLoggedIn || hasRated(res)"
+              aria-label="Submit rating"
             >
               Submit
             </button>
-            <small id="rateHelp" class="help">
+            <small :id="`rateHelp-${res.id}`" class="help">
               Please choose a number between 1 and 5.
             </small>
 
             <!-- 未登录或已评分的提示 -->
-            <p v-if="!isLoggedIn" class="hint">You must login to rate.</p>
-            <p v-else-if="hasRated(res)" class="hint">You have already rated this resource.</p>
+            <p v-if="!isLoggedIn" class="hint" role="alert">You must login to rate.</p>
+            <p v-else-if="hasRated(res)" class="hint" role="status">You have already rated this resource.</p>
 
-            <p v-if="errors[res.id]" class="error">{{ errors[res.id] }}</p>
+            <p v-if="errors[res.id]" class="error" role="alert" aria-live="polite">{{ errors[res.id] }}</p>
           </form>
 
           <footer class="meta">
@@ -126,7 +128,7 @@
 
       <p v-else class="empty">No resources found.</p>
     </div>
-  </div>
+  </main>
 </template>
 
 <script setup lang="ts">

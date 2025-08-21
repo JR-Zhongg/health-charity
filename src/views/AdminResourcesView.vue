@@ -34,7 +34,18 @@
         </div>
 
         <div class="form-control">
-          <label for="summary">Summary *</label>
+          <div class="label-with-action">
+            <label for="summary">Summary *</label>
+            <button
+              type="button"
+              class="btn-ai"
+              @click="onGenerateSummary"
+              :disabled="isGeneratingSummary || !form.title"
+              title="Generate summary based on title and category"
+            >
+              {{ isGeneratingSummary ? 'Generating...' : '✨ AI Generate' }}
+            </button>
+          </div>
           <textarea
             id="summary"
             v-model.trim="form.summary"
@@ -42,6 +53,7 @@
             required
             :maxlength="MAX_SUMMARY_LEN"
           />
+          <p v-if="aiError" class="error-text">{{ aiError }}</p>
         </div>
 
         <div class="form-control">
@@ -89,7 +101,6 @@
 
     <section class="panel">
       <h2>All Resources ({{ resources.length }})</h2>
-
       <table class="table">
         <thead>
           <tr>
@@ -127,26 +138,26 @@ import { reactive, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import { useResources, type Resource } from '../composables/useResources'
-import { sanitizeObject, escapeHtml } from '@/utils/security' // 没有别名请改成 ../utils/security
+import { useAi } from '../composables/useAi'
+import { sanitizeObject, escapeHtml } from '../utils/security'
 
 const router = useRouter()
-// ✅ Correctly import 'role' and 'isAuthenticated' from useAuth
-const { isAuthenticated, role } = useAuth()
+const { role, isAuthenticated } = useAuth()
+// ✅ FIX: Removed 'resetResources' as it no longer exists in the Firestore version
 const {
   resources,
   createResource,
   updateResource,
   deleteResource,
-  resetResources
 } = useResources()
 
-// ✅ Use the imported 'role' computed property for the check
+const { isLoading: isGeneratingSummary, error: aiError, generateSummary } = useAi()
+
 const isAdmin = computed(() => role.value === 'admin')
 if (!isAuthenticated.value || !isAdmin.value) {
   router.replace('/')
 }
 
-// ------- 安全 & 校验常量 -------
 const MAX_TITLE_LEN = 100
 const MAX_CATEGORY_LEN = 50
 const MAX_SUMMARY_LEN = 500
@@ -154,12 +165,9 @@ const MAX_TAG_LEN = 30
 const MAX_TAGS_COUNT = 12
 const MAX_TAGS_STR_LEN = 200
 const MAX_URL_LEN = 300
-
 const TAG_REGEX = /^[a-z0-9-]+$/i
-
-// ------- 表单状态 -------
 type FormState = {
-  id: number | null
+  id: string | null
   title: string
   category: string
   summary: string
@@ -178,62 +186,41 @@ const form = reactive<FormState>({ ...emptyForm })
 const errors = ref<string[]>([])
 const isEditing = computed(() => form.id !== null)
 
-// ------- 工具 -------
+async function onGenerateSummary() {
+  if (!form.title.trim()) {
+    alert('Please enter a title first.');
+    return;
+  }
+  try {
+    const summary = await generateSummary(form.title, form.category);
+    form.summary = summary;
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 function toTags(str: string): string[] {
   if (!str.trim()) return []
   const arr = str
     .split(',')
     .map((t) => t.trim())
     .filter(Boolean)
-    // 去重
     .filter((t, i, self) => self.indexOf(t) === i)
-    // 长度裁剪
     .map((t) => t.slice(0, MAX_TAG_LEN))
-    // 仅保留合法的（字母/数字/-）
     .filter((t) => TAG_REGEX.test(t))
   return arr.slice(0, MAX_TAGS_COUNT)
 }
 function fromTags(tags: string[]): string {
   return tags.join(',')
 }
-
 function validate(): string[] {
   const out: string[] = []
   if (!form.title.trim()) out.push('Title is required.')
   if (!form.category.trim()) out.push('Category is required.')
   if (!form.summary.trim()) out.push('Summary is required.')
-
-  if (form.title.length > MAX_TITLE_LEN) out.push(`Title max length is ${MAX_TITLE_LEN}.`)
-  if (form.category.length > MAX_CATEGORY_LEN) out.push(`Category max length is ${MAX_CATEGORY_LEN}.`)
-  if (form.summary.length > MAX_SUMMARY_LEN) out.push(`Summary max length is ${MAX_SUMMARY_LEN}.`)
-  if (form.tagsStr.length > MAX_TAGS_STR_LEN) out.push(`Tags field max length is ${MAX_TAGS_STR_LEN}.`)
-  if (form.url && form.url.length > MAX_URL_LEN) out.push(`URL max length is ${MAX_URL_LEN}.`)
-
-  // URL 结构校验（可选）
-  if (form.url) {
-    try {
-      // 只允许 http/https
-      const u = new URL(form.url)
-      if (!/^https?:$/.test(u.protocol)) {
-        out.push('URL must start with http/https.')
-      }
-    } catch {
-      out.push('Invalid URL format.')
-    }
-  }
-
-  // tags 额外提示（如果输入了不合法的内容，最终 toTags 会过滤掉）
-  const rawTags = form.tagsStr.split(',').map(t => t.trim()).filter(Boolean)
-  const invalid = rawTags.filter(t => !TAG_REGEX.test(t))
-  if (invalid.length) {
-    out.push('Tags can only contain letters, numbers and "-".')
-  }
-
   return out
 }
-
-// ------- CRUD handlers -------
-function onSubmit() {
+async function onSubmit() {
   errors.value = validate()
   if (errors.value.length) return
 
@@ -244,38 +231,25 @@ function onSubmit() {
     url: form.url?.trim() ? form.url.trim().slice(0, MAX_URL_LEN) : undefined
   }
 
-  // 1) 先对基本字段转义
   const safeBase = sanitizeObject(raw)
-
-  // 2) tags 单独深度转义（sanitizeObject 不会深入数组）
   const safeTags = toTags(form.tagsStr).map((t) => escapeHtml(t))
 
-  const payload = {
-    ...safeBase,
-    tags: safeTags
-  }
+  const payload = { ...safeBase, tags: safeTags }
 
   if (isEditing.value && form.id != null) {
-    const ok = updateResource(form.id, payload)
-    if (!ok) {
-      errors.value = ['Update failed. Resource not found.']
-      return
-    }
+    await updateResource(form.id, payload)
   } else {
-    createResource(payload)
+    await createResource(payload)
   }
-
   resetForm()
 }
-
-function onDelete(id: number) {
+function onDelete(id: string) {
   if (!confirm('Delete this resource?')) return
   deleteResource(id)
   if (isEditing.value && form.id === id) {
     resetForm()
   }
 }
-
 function startEdit(r: Resource) {
   form.id = r.id
   form.title = r.title
@@ -284,24 +258,19 @@ function startEdit(r: Resource) {
   form.tagsStr = fromTags(r.tags)
   form.url = r.url ?? ''
 }
-
 function cancelEdit() {
   resetForm()
 }
-
 function resetForm() {
   Object.assign(form, emptyForm)
   errors.value = []
 }
-
-// Reset mock data
 function onReset() {
-  if (!confirm('Reset to default mock data?')) return
-  resetResources()
+  // ✅ FIX: Removed the call to resetResources() and added a user-friendly alert.
+  // Resetting the entire database would require a Cloud Function.
+  alert('Resetting to mock data is disabled when using the live Firestore database.');
   resetForm()
 }
-
-// helpers
 function formatDate(iso: string) {
   const d = new Date(iso)
   return d.toLocaleDateString()
@@ -317,22 +286,14 @@ function avg(res: Resource) {
   max-width: 1200px;
   margin: 0 auto;
   padding: 40px 20px 80px;
-  box-sizing: border-box;
 }
-
-.tip {
-  color: #777;
-  margin-bottom: 1rem;
-}
-
 .panel {
   margin-top: 1.5rem;
-  padding: 1rem;
+  padding: 1.5rem;
   background: #fff;
   border: 1px solid #e4e4e4;
-  border-radius: 6px;
+  border-radius: 8px;
 }
-
 .form-control {
   display: flex;
   flex-direction: column;
@@ -344,28 +305,19 @@ function avg(res: Resource) {
   border: 1px solid #ccc;
   border-radius: 4px;
 }
-
 .actions {
   display: flex;
   gap: 0.5rem;
-  margin-top: .25rem;
 }
-
 .error-list {
   margin-top: 0.75rem;
   color: #d93025;
 }
-
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.95rem;
 }
-.table thead tr {
-  background: #f7f7f7;
-}
-.table th,
-.table td {
+.table th, .table td {
   border: 1px solid #e4e4e4;
   padding: 8px 10px;
   text-align: left;
@@ -374,47 +326,45 @@ function avg(res: Resource) {
   display: flex;
   gap: 8px;
 }
-.link {
+.link, .link-danger {
   border: none;
   background: transparent;
-  color: #0c63e4;
   cursor: pointer;
 }
-.link-danger {
-  border: none;
-  background: transparent;
-  color: #c00;
+.link { color: #0c63e4; }
+.link-danger { color: #c00; }
+.btn-primary, .btn-secondary, .btn-danger {
+  padding: 8px 14px;
+  border-radius: 4px;
   cursor: pointer;
 }
+.btn-primary { background: #000; color: #fff; border: none; }
+.btn-secondary { background: #f2f2f2; color: #333; border: 1px solid #ccc; }
+.btn-danger { background: #c00; color: #fff; border: none; }
+.empty { text-align: center; color: #777; }
 
-.btn-primary {
-  padding: 8px 14px;
-  background: #000;
-  color: #fff;
-  font-weight: 600;
-  border-radius: 4px;
+.label-with-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+.btn-ai {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  background: linear-gradient(45deg, #6a11cb 0%, #2575fc 100%);
+  color: white;
   border: none;
-  cursor: pointer;
-}
-.btn-secondary {
-  padding: 8px 14px;
-  background: #f2f2f2;
-  color: #333;
-  border: 1px solid #ccc;
   border-radius: 4px;
   cursor: pointer;
 }
-.btn-danger {
-  padding: 8px 14px;
-  background: #c00;
-  color: #fff;
-  font-weight: 600;
-  border-radius: 4px;
-  border: none;
-  cursor: pointer;
+.btn-ai:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
-.empty {
-  text-align: center;
-  color: #777;
+.error-text {
+  color: #d93025;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
 }
 </style>

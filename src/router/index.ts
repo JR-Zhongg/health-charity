@@ -13,8 +13,10 @@ import AdminDashboardView from '../views/AdminDashboardView.vue'
 import AdminResourcesView from '../views/AdminResourcesView.vue'
 import AdminContactsView from '../views/AdminContactsView.vue'
 import ContactForm from '../views/ContactForm.vue'
-import ResourcesTableView from '../views/ResourcesTableView.vue' // ✅ D.3 - 用户可访问表格
-import AdminSimpleTableView from '../views/AdminSimpleTableView.vue' // ✅ 替代 AdminUsersTableView
+import ResourcesTableView from '../views/ResourcesTableView.vue'
+import AdminSimpleTableView from '../views/AdminSimpleTableView.vue'
+import MapView from '../views/MapView.vue'
+import BookingView from '../views/BookingView.vue';
 
 // 类型支持
 import type { Role } from '../composables/useAuth'
@@ -31,6 +33,7 @@ declare module 'vue-router' {
 
 const routes: RouteRecordRaw[] = [
   { path: '/', name: 'home', component: HomeView },
+  { path: '/map', name: 'map', component: MapView },
 
   { path: '/resources', name: 'resources', component: HealthResourcesView },
   { path: '/community', name: 'community', component: CommunityView },
@@ -82,6 +85,12 @@ const routes: RouteRecordRaw[] = [
     name: 'admin-contact-form',
     component: ContactForm,
     meta: { requiresAuth: true, roles: ['admin'] }
+  },
+  {
+    path: '/booking',
+    name: 'booking',
+    component: BookingView,
+    meta: { requiresAuth: true } // 只有登录用户才能访问
   },
 
   // fallback

@@ -18,12 +18,20 @@
         <RouterLink to="/resources-table" class="nav-link" @click="closeIfMobile">Resources Table</RouterLink>
         <RouterLink to="/community" class="nav-link" @click="closeIfMobile">Community Forum</RouterLink>
         <RouterLink to="/contact" class="nav-link" @click="closeIfMobile">Contact & Support</RouterLink>
-        <RouterLink to="/about" class="nav-link" @click="closeIfMobile">About Us</RouterLink>
-        <RouterLink to="/carer-support" class="nav-link" @click="closeIfMobile">Carer Support</RouterLink>
+        <RouterLink to="/map" class="nav-link" @click="closeIfMobile">Map</RouterLink>
+        <RouterLink to="/booking" class="nav-link" @click="closeIfMobile">Booking</RouterLink>
         <RouterLink to="/admin/contact-form" class="nav-link" @click="closeIfMobile">Send Email</RouterLink>
       </div>
 
       <div class="nav-right">
+        <!-- ✅ 1. Add the online status indicator -->
+        <div
+          class="online-status"
+          :class="{ online: isOnline }"
+          :title="isOnline ? 'You are online' : 'You are offline. Some features may be limited.'"
+          aria-label="Network Status"
+        ></div>
+
         <template v-if="isAuthenticated">
           <span class="welcome">Hi, {{ displayName }}</span>
 
@@ -56,10 +64,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuth } from '@/composables/useAuth'
+import { useAuth } from '../composables/useAuth' // ✅ FIX: Use relative path
+import { useOnlineStatus } from '../composables/useOnlineStatus' // ✅ 2. Import useOnlineStatus
 
 const router = useRouter()
 const { isAuthenticated, displayName, role, logout } = useAuth()
+const { isOnline } = useOnlineStatus() // ✅ 3. Get the online status
 
 const isAdmin = computed(() => role.value === 'admin')
 const isOpen = ref(false)
@@ -178,6 +188,19 @@ function onLogout() {
   color: #c00;
   font-weight: 700;
   cursor: pointer;
+}
+
+/* ✅ 4. Add styles for the online status indicator */
+.online-status {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #d1d5db; /* Gray for offline */
+  transition: background-color 0.3s ease;
+  margin-right: -8px; /* Adjust spacing */
+}
+.online-status.online {
+  background-color: #22c55e; /* Green for online */
 }
 
 /* dropdown */

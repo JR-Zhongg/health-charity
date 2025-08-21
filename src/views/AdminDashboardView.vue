@@ -1,31 +1,58 @@
 <template>
   <div class="container-wide">
     <h1>Admin Dashboard</h1>
-    <p>Only admins can see this page.</p>
+    <p>An overview of the application status.</p>
 
-    <section class="box">
-      <h2>Users</h2>
-      <!--
-        这里暂时显示一条提示信息。
-        获取所有用户列表需要后端功能（如 Firebase Cloud Functions）支持。
-      -->
-      <p>User list functionality requires a backend implementation.</p>
-      <!--
-        如果你未来实现了获取用户列表的功能，可以取消下面的注释
-        <ul>
-          <li v-for="u in users" :key="u.uid">
-            <strong>{{ u.displayName || u.email }}</strong> — {{ u.email }} (Role: {{ u.role }})
-          </li>
-        </ul>
-      -->
+    <!-- Chart Container -->
+    <section class="box chart-container">
+      <h2>Resources by Category</h2>
+      <div v-if="chartData.labels.length > 0" class="chart-wrapper">
+        <ChartComponent :chartData="chartData" />
+      </div>
+      <p v-else>Loading chart data or no resources found...</p>
     </section>
+
   </div>
 </template>
 
 <script setup lang="ts">
-// useAuth composable 不提供所有用户的列表，所以我们不再从这里获取 users
-// import { useAuth } from '../composables/useAuth'
-// const { users } = useAuth()
+import { computed } from 'vue';
+import { useResources } from '../composables/useResources';
+// ✅ FIX: Switched back to a relative path that works in your setup
+import ChartComponent from '../components/ChartComponent.vue';
+
+// 1. Get data from useResources
+const { resources } = useResources();
+
+// 2. Create a computed property to process the data for the chart
+const chartData = computed(() => {
+  const categoryCounts: Record<string, number> = {};
+
+  // Count the number of resources in each category
+  for (const resource of resources.value) {
+    if (categoryCounts[resource.category]) {
+      categoryCounts[resource.category]++;
+    } else {
+      categoryCounts[resource.category] = 1;
+    }
+  }
+
+  const labels = Object.keys(categoryCounts);
+  const data = Object.values(categoryCounts);
+
+  return {
+    labels: labels,
+    datasets: [
+      {
+        backgroundColor: [
+          '#41B883', '#E46651', '#00D8FF', '#DD1B16',
+          '#FFC107', '#607D8B', '#9C27B0'
+        ],
+        data: data
+      }
+    ]
+  };
+});
 </script>
 
 <style scoped>
@@ -35,10 +62,17 @@
   padding: 40px 20px;
 }
 .box {
-  margin-top: 1rem;
+  margin-top: 1.5rem;
   border: 1px solid #e4e4e4;
-  padding: 1rem;
-  border-radius: 6px;
+  padding: 1.5rem;
+  border-radius: 8px;
   background: #fff;
+}
+.chart-container {
+  padding-bottom: 2rem;
+}
+.chart-wrapper {
+  position: relative;
+  height: 350px; /* Give the chart a fixed height */
 }
 </style>
